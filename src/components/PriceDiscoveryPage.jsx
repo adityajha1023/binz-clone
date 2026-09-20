@@ -38,8 +38,9 @@ export default function PriceDiscoveryPage() {
           setLocationStatus('granted');
           setLocationMessage(`आपकी जगह: ${location.city}`);
         } catch {
+          const savedCity = localStorage.getItem('priceCity');
           setLocationStatus('unavailable');
-          setLocationMessage('आपकी जगह पहचानी नहीं जा सकी। नीचे से जगह चुनें।');
+          setLocationMessage(savedCity ? `Location मिली, लेकिन city service उपलब्ध नहीं है। अभी ${savedCity} के भाव दिख रहे हैं।` : 'Location मिली, लेकिन city service उपलब्ध नहीं है। नीचे से जगह चुनें।');
         }
       },
       () => {

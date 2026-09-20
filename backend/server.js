@@ -24,7 +24,7 @@ const allowedOrigins = (process.env.CLIENT_ORIGIN || '')
 // Vercel gives each deployment a project-specific HTTPS URL. Allow only this
 // project's production and deployment URLs so preview builds can call the API.
 const isBinzVercelDeployment = (origin) =>
-    /^https:\/\/project-binz(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(origin);
+    /^https:\/\/(?:project-binz|binz-clone)(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(origin);
 // Flutter web uses a localhost port in development. This allows local testing
 // without opening production API access to arbitrary third-party sites.
 const isLocalFlutterWebOrigin = (origin) =>
