@@ -1,6 +1,6 @@
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const localApiUrl = 'http://localhost:5050';
-const deployedApiUrl = 'https://binz-backend.onrender.com';
+const deployedApiUrl = 'https://binz-clone.onrender.com';
 
 // In production this must be the public HTTPS URL of the separately deployed API.
 export const apiBaseUrl = (configuredApiUrl || (import.meta.env.DEV ? localApiUrl : deployedApiUrl))

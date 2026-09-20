@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 
 const _apiUrl = String.fromEnvironment(
   'BINZ_API_URL',
-  defaultValue: 'https://binz-backend.onrender.com',
+  defaultValue: 'https://binz-clone.onrender.com',
 );
 const _tokenKey = 'binz_session_token';
 
