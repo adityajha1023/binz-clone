@@ -184,6 +184,7 @@ export default function Header({
       >
         <a className="primary-link" href="#home" onClick={handleNavLinkClick}>Home</a>
         <a className="primary-link" href="#scrap" onClick={handleNavLinkClick}>Scrap</a>
+        <a className="primary-link" href="#prices" onClick={handleNavLinkClick}>आज का भाव</a>
         <a className="primary-link" href="#earn" onClick={handleNavLinkClick}>Earn Coins</a>
         <a className="primary-link donate-link" href="#donate" onClick={handleNavLinkClick}>
           <Gift size={14} aria-hidden="true" /> Donate

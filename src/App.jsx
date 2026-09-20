@@ -16,6 +16,8 @@ import EarnSection from './components/EarnSection';
 import TrackerSection from './components/TrackerSection';
 import LeaderboardSection from './components/LeaderboardSection';
 import ServiceSection from './components/ServiceSection';
+import PriceDiscoveryPage from './components/PriceDiscoveryPage';
+import PricePreview from './components/PricePreview';
 import AboutBand from './components/AboutBand';
 import Footer from './components/Footer';
 import ChatFab from './components/ChatFab';
@@ -33,6 +35,7 @@ const standalonePages = new Set([
   '#certifications',
   '#donate',
   '#ewaste-tracker',
+  '#prices',
 ]);
 
 const mainPageSections = new Set([
@@ -317,6 +320,10 @@ function App() {
     return renderStandalonePage(<EWasteTrackerPage />);
   }
 
+  if (currentPage === '#prices') {
+    return renderStandalonePage(<PriceDiscoveryPage />);
+  }
+
   return (
     <>
       <TopStrip />
@@ -337,6 +344,7 @@ function App() {
         />
         <TrustRow />
         <StatsBand entries={entries} tickets={tickets} />
+        <PricePreview />
         <ScrapSection
           onSellEwaste={handleSellEwaste}
           onSellNormal={handleSellNormal}

@@ -183,6 +183,185 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model("User", UserSchema);
 
+const PRICE_CATEGORIES = [
+    { id: "iron", name: "Iron", nameHindi: "लोहा", unit: "kg" },
+    { id: "steel", name: "Steel", nameHindi: "स्टील", unit: "kg" },
+    { id: "aluminium", name: "Aluminium", nameHindi: "एल्युमिनियम", unit: "kg" },
+    { id: "copper", name: "Copper", nameHindi: "तांबा", unit: "kg" },
+    { id: "brass", name: "Brass", nameHindi: "पीतल", unit: "kg" },
+    { id: "newspaper", name: "Newspaper", nameHindi: "रद्दी", unit: "kg" },
+    { id: "cardboard", name: "Cardboard", nameHindi: "गत्ता", unit: "kg" },
+    { id: "plastic", name: "Plastic", nameHindi: "प्लास्टिक", unit: "kg" },
+    { id: "pet-bottles", name: "PET Bottles", nameHindi: "प्लास्टिक बोतल", unit: "kg" },
+    { id: "ewaste", name: "E-waste", nameHindi: "ई-कचरा", unit: "kg" },
+    { id: "mixed-scrap", name: "Mixed Scrap", nameHindi: "मिक्स कबाड़", unit: "kg" },
+    { id: "other", name: "Other", nameHindi: "अन्य", unit: "kg" },
+];
+
+const priceSchema = new mongoose.Schema({
+    categoryId: { type: String, required: true, index: true },
+    categoryName: { type: String, required: true },
+    categoryNameHindi: { type: String, required: true },
+    price: { type: Number, required: true, min: 0 },
+    unit: { type: String, required: true, default: "kg" },
+    location: {
+        city: { type: String, required: true, trim: true },
+        state: { type: String, required: true, trim: true },
+        pincode: { type: String, trim: true },
+    },
+    source: { type: String, required: true, trim: true },
+    recordedAt: { type: Date, required: true, default: Date.now },
+}, { timestamps: true });
+
+priceSchema.index({ categoryId: 1, "location.city": 1, "location.state": 1, recordedAt: -1 });
+priceSchema.index({ "location.city": 1, "location.state": 1, recordedAt: -1 });
+const Price = mongoose.model("Price", priceSchema);
+
+const DEMO_PRICE_RECORDS = [
+    ["Iron", 30, "2026-09-01"], ["Iron", 31, "2026-09-07"], ["Iron", 30, "2026-09-14"], ["Iron", 32, "2026-09-20"],
+    ["Steel", 40, "2026-09-01"], ["Steel", 42, "2026-09-10"], ["Steel", 45, "2026-09-20"],
+    ["Aluminium", 105, "2026-09-01"], ["Aluminium", 112, "2026-09-10"], ["Aluminium", 120, "2026-09-20"],
+    ["Copper", 620, "2026-09-01"], ["Copper", 640, "2026-09-10"], ["Copper", 650, "2026-09-20"],
+    ["Newspaper", 17, "2026-09-01"], ["Newspaper", 17, "2026-09-10"], ["Newspaper", 18, "2026-09-20"],
+    ["Cardboard", 7, "2026-09-01"], ["Cardboard", 8, "2026-09-10"], ["Cardboard", 8, "2026-09-20"],
+    ["Plastic", 22, "2026-09-01"], ["Plastic", 24, "2026-09-10"], ["Plastic", 25, "2026-09-20"],
+].map(([category, price, date]) => ({ category, price, city: "Greater Noida", state: "Uttar Pradesh", source: "DEMO DATA - local market sample", recordedAt: new Date(`${date}T10:30:00.000Z`) }));
+
+function findPriceCategory(value) {
+    if (typeof value !== "string") return null;
+    const normalized = value.trim().toLowerCase();
+    return PRICE_CATEGORIES.find((category) => category.id === normalized || category.name.toLowerCase() === normalized || category.nameHindi === value.trim()) || null;
+}
+
+function priceLocationFilter(query) {
+    const filter = {};
+    if (query.city) filter["location.city"] = sanitizeInput(query.city);
+    if (query.state) filter["location.state"] = sanitizeInput(query.state);
+    return filter;
+}
+
+function serializePrice(price, previous) {
+    const change = previous ? price.price - previous.price : null;
+    const changePercent = previous && previous.price !== 0 ? (change / previous.price) * 100 : null;
+    return {
+        category: price.categoryName,
+        categoryHindi: price.categoryNameHindi,
+        currentPrice: price.price,
+        previousPrice: previous?.price ?? null,
+        unit: price.unit,
+        change,
+        changePercent: changePercent === null ? null : Number(changePercent.toFixed(2)),
+        direction: change === null ? "unknown" : change > 0 ? "up" : change < 0 ? "down" : "stable",
+        source: price.source,
+        updatedAt: price.recordedAt,
+        location: price.location,
+    };
+}
+
+async function getLatestPrices(filter) {
+    const records = await Price.find(filter).sort({ recordedAt: -1, createdAt: -1 }).lean();
+    const latestByCategory = new Map();
+    const previousByCategory = new Map();
+    records.forEach((record) => {
+        if (!latestByCategory.has(record.categoryId)) latestByCategory.set(record.categoryId, record);
+        else if (!previousByCategory.has(record.categoryId)) previousByCategory.set(record.categoryId, record);
+    });
+    return [...latestByCategory.values()]
+        .sort((a, b) => a.categoryName.localeCompare(b.categoryName))
+        .map((record) => serializePrice(record, previousByCategory.get(record.categoryId)));
+}
+
+app.get("/prices/categories", (req, res) => res.status(200).json({ categories: PRICE_CATEGORIES }));
+
+app.get("/prices/locations", async (req, res) => {
+    try {
+        const locations = await Price.aggregate([
+            { $group: { _id: { city: "$location.city", state: "$location.state" } } },
+            { $sort: { "_id.city": 1 } },
+            { $project: { _id: 0, city: "$_id.city", state: "$_id.state" } },
+        ]);
+        res.status(200).json({ locations });
+    } catch (error) {
+        console.error("Price locations error:", error);
+        res.status(500).json({ success: false, message: "Unable to load price locations." });
+    }
+});
+
+app.get("/prices/current", async (req, res) => {
+    try {
+        const category = req.query.category ? findPriceCategory(req.query.category) : null;
+        if (req.query.category && !category) return res.status(400).json({ success: false, message: "Unknown price category." });
+        const filter = priceLocationFilter(req.query);
+        if (category) filter.categoryId = category.id;
+        const prices = await getLatestPrices(filter);
+        const location = { city: req.query.city || prices[0]?.location?.city || null, state: req.query.state || prices[0]?.location?.state || null };
+        res.status(200).json({ location, prices });
+    } catch (error) {
+        console.error("Current prices error:", error);
+        res.status(500).json({ success: false, message: "Unable to load current prices." });
+    }
+});
+
+app.get("/prices/history", async (req, res) => {
+    try {
+        const category = findPriceCategory(req.query.category);
+        if (!category) return res.status(400).json({ success: false, message: "A valid category is required." });
+        const filter = { ...priceLocationFilter(req.query), categoryId: category.id };
+        if (req.query.startDate || req.query.endDate) {
+            filter.recordedAt = {};
+            if (req.query.startDate) filter.recordedAt.$gte = new Date(req.query.startDate);
+            if (req.query.endDate) filter.recordedAt.$lte = new Date(req.query.endDate);
+            if (Object.values(filter.recordedAt).some((date) => Number.isNaN(date.getTime()))) return res.status(400).json({ success: false, message: "Invalid history date." });
+        }
+        const records = await Price.find(filter).sort({ recordedAt: 1 }).lean();
+        res.status(200).json({ category: category.name, location: req.query.city || null, history: records.map((record) => ({ date: record.recordedAt.toISOString().slice(0, 10), price: record.price, unit: record.unit, source: record.source })) });
+    } catch (error) {
+        console.error("Price history error:", error);
+        res.status(500).json({ success: false, message: "Unable to load price history." });
+    }
+});
+
+app.get("/prices/trend", async (req, res) => {
+    try {
+        const category = findPriceCategory(req.query.category);
+        const range = ["7d", "30d", "90d"].includes(req.query.range) ? req.query.range : "30d";
+        if (!category) return res.status(400).json({ success: false, message: "A valid category is required." });
+        const days = Number.parseInt(range, 10);
+        const start = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        const filter = { ...priceLocationFilter(req.query), categoryId: category.id, recordedAt: { $gte: start } };
+        const records = await Price.find(filter).sort({ recordedAt: 1 }).lean();
+        const first = records[0]?.price;
+        const latest = records.at(-1)?.price;
+        const change = first === undefined || latest === undefined ? null : latest - first;
+        const percentageChange = first ? (change / first) * 100 : null;
+        const trend = change === null ? "unknown" : Math.abs(percentageChange) < 2 ? "stable" : change > 0 ? "rising" : "falling";
+        res.status(200).json({ category: category.name, categoryHindi: category.nameHindi, location: req.query.city || null, range, trend, change, percentageChange: percentageChange === null ? null : Number(percentageChange.toFixed(2)), data: records.map((record) => ({ date: record.recordedAt.toISOString().slice(0, 10), price: record.price })) });
+    } catch (error) {
+        console.error("Price trend error:", error);
+        res.status(500).json({ success: false, message: "Unable to load price trend." });
+    }
+});
+
+app.post("/prices", requireAdmin, async (req, res) => {
+    try {
+        const category = findPriceCategory(req.body.category);
+        const price = Number(req.body.price);
+        const city = sanitizeInput(req.body.city || "");
+        const state = sanitizeInput(req.body.state || "");
+        const source = sanitizeInput(req.body.source || "");
+        if (!category) return res.status(400).json({ success: false, message: "A valid price category is required." });
+        if (!Number.isFinite(price) || price < 0) return res.status(400).json({ success: false, message: "Price must be a valid positive number." });
+        if (!city || !state || !source) return res.status(400).json({ success: false, message: "City, state and source are required." });
+        const recordedAt = req.body.recordedAt ? new Date(req.body.recordedAt) : new Date();
+        if (Number.isNaN(recordedAt.getTime())) return res.status(400).json({ success: false, message: "Recorded date is invalid." });
+        const record = await Price.create({ categoryId: category.id, categoryName: category.name, categoryNameHindi: category.nameHindi, price, unit: req.body.unit || category.unit, location: { city, state, pincode: sanitizeInput(req.body.pincode || "") }, source, recordedAt });
+        res.status(201).json({ success: true, price: record });
+    } catch (error) {
+        console.error("Create price error:", error);
+        res.status(500).json({ success: false, message: "Unable to save price." });
+    }
+});
+
 const LeaderboardEntry = mongoose.model("LeaderboardEntry", new mongoose.Schema({
     name: { type: String, required: true },
     coins: { type: Number, required: true },
