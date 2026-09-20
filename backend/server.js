@@ -273,6 +273,30 @@ async function getLatestPrices(filter) {
 
 app.get("/prices/categories", (req, res) => res.status(200).json({ categories: PRICE_CATEGORIES }));
 
+app.get("/prices/location", async (req, res) => {
+    try {
+        const latitude = Number(req.query.latitude);
+        const longitude = Number(req.query.longitude);
+        if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+            return res.status(400).json({ success: false, message: "Valid latitude and longitude are required." });
+        }
+
+        const params = new URLSearchParams({ format: "jsonv2", addressdetails: "1", zoom: "10", lat: String(latitude), lon: String(longitude) });
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
+            headers: { "User-Agent": process.env.GEOCODING_USER_AGENT || "BinZ-price-discovery/1.0" },
+        });
+        if (!response.ok) return res.status(502).json({ success: false, message: "Unable to identify your location." });
+        const result = await response.json();
+        const address = result.address || {};
+        const city = address.city || address.town || address.municipality || address.village || address.county;
+        if (!city || !address.state) return res.status(404).json({ success: false, message: "A city could not be identified from your location." });
+        res.status(200).json({ city, state: address.state, pincode: address.postcode || "" });
+    } catch (error) {
+        console.error("Reverse geocoding error:", error);
+        res.status(502).json({ success: false, message: "Unable to identify your location." });
+    }
+});
+
 app.get("/prices/locations", async (req, res) => {
     try {
         const locations = await Price.aggregate([

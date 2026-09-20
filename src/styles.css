@@ -2134,6 +2134,22 @@ textarea:focus {
   padding: 0 12px;
 }
 
+.location-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.location-status.granted {
+  color: var(--moss);
+}
+
+.location-status.denied,
+.location-status.unavailable {
+  color: #8b321f;
+}
+
 .board-speak-button {
   justify-self: start;
   margin-top: 6px;

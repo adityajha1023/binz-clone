@@ -58,6 +58,7 @@ async function requestWithDevelopmentFallback(path, fallback) {
 
 export const getPriceCategories = () => requestWithDevelopmentFallback('/prices/categories', { categories: demoCategories });
 export const getPriceLocations = () => requestWithDevelopmentFallback('/prices/locations', { locations: [{ city: 'Greater Noida', state: 'Uttar Pradesh' }] });
+export const reverseGeocode = ({ latitude, longitude }) => request(`/prices/location?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`);
 
 export function getCurrentPrices({ city, state, category } = {}) {
   const params = new URLSearchParams();

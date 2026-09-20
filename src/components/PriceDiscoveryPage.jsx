@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MapPin, Search, Square, Volume2 } from 'lucide-react';
 import PriceCard from './PriceCard';
 import PriceTrendChart from './PriceTrendChart';
-import { getCurrentPrices, getPriceCategories, getPriceLocations, getPriceTrend } from '../services/priceService';
+import { getCurrentPrices, getPriceCategories, getPriceLocations, getPriceTrend, reverseGeocode } from '../services/priceService';
 import { speakPriceBoard, stopSpeaking } from '../utils/speech';
 
 const defaultCity = () => localStorage.getItem('priceCity') || 'Greater Noida';
@@ -19,6 +19,36 @@ export default function PriceDiscoveryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [speaking, setSpeaking] = useState(false);
+  const [locationStatus, setLocationStatus] = useState('requesting');
+  const [locationMessage, setLocationMessage] = useState('आपकी जगह पूछी जा रही है...');
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationStatus('unavailable');
+      setLocationMessage('इस browser में location उपलब्ध नहीं है। नीचे से जगह चुनें।');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const location = await reverseGeocode({ latitude: coords.latitude, longitude: coords.longitude });
+          setCity(location.city);
+          localStorage.setItem('priceCity', location.city);
+          setLocationStatus('granted');
+          setLocationMessage(`आपकी जगह: ${location.city}`);
+        } catch {
+          setLocationStatus('unavailable');
+          setLocationMessage('आपकी जगह पहचानी नहीं जा सकी। नीचे से जगह चुनें।');
+        }
+      },
+      () => {
+        setLocationStatus('denied');
+        setLocationMessage('Location permission नहीं मिली। नीचे से जगह चुनें।');
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 15 * 60 * 1000 },
+    );
+  }, []);
 
   useEffect(() => {
     Promise.all([getPriceCategories(), getPriceLocations()]).then(([categoryResult, locationResult]) => {
@@ -61,6 +91,7 @@ export default function PriceDiscoveryPage() {
         <h1>आज का कबाड़ भाव</h1>
         <p className="prices-lede">Today's scrap prices, previous rates और आसान Hindi में भाव सुनने की सुविधा।</p>
         <div className="prices-location"><MapPin size={20} aria-hidden="true" /><label htmlFor="price-location">स्थान / Location</label><select id="price-location" value={city} onChange={(event) => setCity(event.target.value)}><option value="Greater Noida">Greater Noida</option>{locations.filter((location) => location.city !== 'Greater Noida').map((location) => <option key={`${location.city}-${location.state}`} value={location.city}>{location.city}</option>)}</select></div>
+        <p className={`location-status ${locationStatus}`} role="status">{locationMessage}</p>
         <button className="button primary board-speak-button" type="button" disabled={!visiblePrices.length} onClick={handleSpeakBoard}>{speaking ? <><Square size={17} /> रोकें</> : <><Volume2 size={17} /> पूरा भाव सुनें</>}</button>
       </section>
       <section className="price-controls section padded" aria-label="Price filters">
