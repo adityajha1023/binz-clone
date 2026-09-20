@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.js"
   },
   "repository": {
     "type": "git",
@@ -30,7 +31,4 @@
     "react-dom": "^19.2.8",
     "vite": "^8.2.2"
   },
-  "scripts": {
-    "start": "node server.js"
-  }
 }
