@@ -55,13 +55,17 @@ export default function PriceDiscoveryPage() {
     Promise.all([getPriceCategories(), getPriceLocations()]).then(([categoryResult, locationResult]) => {
       setCategories(categoryResult.categories);
       setLocations(locationResult.locations);
-    }).catch(() => setError('भाव की जानकारी लोड नहीं हो सकी। कृपया थोड़ी देर बाद दोबारा कोशिश करें।'));
+    }).catch((requestError) => setError(requestError.message === 'Price API routes are not deployed on the backend yet.'
+      ? 'Price service अभी backend पर deploy नहीं हुई है। Backend को नवीनतम code के साथ redeploy करें।'
+      : 'भाव की जानकारी लोड नहीं हो सकी। कृपया थोड़ी देर बाद दोबारा कोशिश करें।'));
   }, []);
 
   useEffect(() => {
     setLoading(true);
     setError('');
-    getCurrentPrices({ city, category: category || undefined }).then((result) => setPrices(result.prices)).catch(() => setError('भाव लोड नहीं हो सका। कृपया थोड़ी देर बाद दोबारा कोशिश करें।')).finally(() => setLoading(false));
+    getCurrentPrices({ city, category: category || undefined }).then((result) => setPrices(result.prices)).catch((requestError) => setError(requestError.message === 'Price API routes are not deployed on the backend yet.'
+      ? 'Price service अभी backend पर deploy नहीं हुई है। Backend को नवीनतम code के साथ redeploy करें।'
+      : 'भाव लोड नहीं हो सका। कृपया थोड़ी देर बाद दोबारा कोशिश करें।')).finally(() => setLoading(false));
     localStorage.setItem('priceCity', city);
   }, [city, category]);
 
@@ -106,7 +110,7 @@ export default function PriceDiscoveryPage() {
       </section>
       <section className="price-trend-section section padded" aria-labelledby="price-trend-title">
         <div className="section-heading"><p className="eyebrow">समझने में आसान</p><h2 id="price-trend-title">भाव का रुझान <span>Price Trend</span></h2></div>
-        <div className="trend-card"><div className="trend-tabs">{['7d', '30d', '90d'].map((range) => <button className={trendRange === range ? 'active' : ''} type="button" key={range} onClick={() => setTrendRange(range)}>{range === '7d' ? '7 दिन' : range === '30d' ? '30 दिन' : '90 दिन'}</button>)}</div>{trend && <p className={`trend-summary ${trend.trend}`}>{trend.trend === 'rising' ? '📈 भाव बढ़ रहा है' : trend.trend === 'falling' ? '📉 भाव कम हुआ है' : trend.trend === 'stable' ? '➡️ भाव लगभग स्थिर है' : '📊 पुराना भाव उपलब्ध नहीं है'}{trend.change !== null && <span>{trend.change >= 0 ? ` Price increased by ₹${trend.change}` : ` Price decreased by ₹${Math.abs(trend.change)}`}</span>}</p>}<PriceTrendChart data={trend?.data || []} /></div>
+        <div className="trend-card"><div className="trend-tabs">{['7d', '30d', '90d'].map((range) => <button className={trendRange === range ? 'active' : ''} type="button" key={range} onClick={() => setTrendRange(range)}>{range === '7d' ? '7 दिन' : range === '30d' ? '30 दिन' : '90 दिन'}</button>)}</div>{trend && <p className={`trend-summary ${trend.trend}`}>{trend.trend === 'rising' ? '📈 भाव बढ़ रहा है' : trend.trend === 'falling' ? '📉 भाव कम हुआ है' : trend.trend === 'stable' ? '➡️ भाव लगभग स्थिर है' : 'पुराना भाव उपलब्ध नहीं है'}{trend.change !== null && <span>{trend.change >= 0 ? ` Price increased by ₹${trend.change}` : ` Price decreased by ₹${Math.abs(trend.change)}`}</span>}</p>}<PriceTrendChart data={trend?.data || []} /></div>
       </section>
       <section className="price-trust section padded"><strong>जानकारी:</strong> हर भाव के साथ source और update time दिया गया है। Demo data को साफ़ तौर पर चिन्हित किया गया है; कोई verified external live market feed अभी connected नहीं है।</section>
     </main>

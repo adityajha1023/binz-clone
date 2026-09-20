@@ -43,7 +43,12 @@ const demoTrend = {
 async function request(path) {
   const response = await fetch(apiUrl(path));
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.message || 'Price data is unavailable.');
+  if (!response.ok) {
+    if (response.status === 404 && path.startsWith('/prices/')) {
+      throw new Error('Price API routes are not deployed on the backend yet.');
+    }
+    throw new Error(result.message || 'Price data is unavailable.');
+  }
   return result;
 }
 
